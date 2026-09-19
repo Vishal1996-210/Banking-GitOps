@@ -1,0 +1,16 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: customer-service
+  namespace: hsbc-prod
+
+  labels:
+    app.kubernetes.io/name: customer-service
+    app.kubernetes.io/part-of: hsbc
+
+spec:
+  minAvailable: 2
+
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: customer-service
