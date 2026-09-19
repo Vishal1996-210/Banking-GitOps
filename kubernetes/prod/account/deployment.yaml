@@ -1,0 +1,139 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: account-service
+  namespace: hsbc-prod
+
+  labels:
+    app.kubernetes.io/name: account-service
+    app.kubernetes.io/part-of: hsbc
+
+spec:
+  replicas: 3
+
+  strategy:
+    type: RollingUpdate
+
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: account-service
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: account-service
+        app.kubernetes.io/part-of: hsbc
+
+    spec:
+      serviceAccountName: account-service
+
+      terminationGracePeriodSeconds: 30
+
+      securityContext:
+        runAsNonRoot: true
+
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+
+        - name: account-service
+
+          image: REPLACE_WITH_ACCOUNT_ECR_IMAGE
+
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+
+          envFrom:
+
+            - configMapRef:
+                name: account-service-config
+
+            - secretRef:
+                name: account-db-secret
+
+          resources:
+
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 30
+
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          securityContext:
+            allowPrivilegeEscalation: false
+
+            capabilities:
+              drop:
+                - ALL
+
+          volumeMounts:
+
+            - name: secrets-store
+              mountPath: /mnt/secrets-store
+              readOnly: true
+
+      volumes:
+
+        - name: secrets-store
+
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+
+            volumeAttributes:
+              secretProviderClass: account-service-secret
+
+      affinity:
+
+        podAntiAffinity:
+
+          preferredDuringSchedulingIgnoredDuringExecution:
+
+            - weight: 100
+
+              podAffinityTerm:
+                topologyKey: topology.kubernetes.io/zone
+
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: account-service
