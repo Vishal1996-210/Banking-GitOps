@@ -1,0 +1,68 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hsbc-prod-ingress
+  namespace: hsbc-prod
+
+  labels:
+    app.kubernetes.io/part-of: hsbc
+    environment: prod
+
+  annotations:
+
+    # Internet-facing AWS Application Load Balancer
+    alb.ingress.kubernetes.io/scheme: internet-facing
+
+    # Route traffic directly to pod IPs
+    alb.ingress.kubernetes.io/target-type: ip
+
+    # HTTPS listener
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+
+    # Redirect HTTP to HTTPS
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+
+    # ACM certificate
+    alb.ingress.kubernetes.io/certificate-arn: "REPLACE_WITH_ACM_CERTIFICATE_ARN"
+
+    # ALB health check
+    alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+    alb.ingress.kubernetes.io/healthcheck-port: "8080"
+
+spec:
+  ingressClassName: alb
+
+  rules:
+
+    - host: api.example.com
+
+      http:
+
+        paths:
+
+          - path: /customer
+            pathType: Prefix
+
+            backend:
+              service:
+                name: customer-service
+                port:
+                  number: 8080
+
+          - path: /account
+            pathType: Prefix
+
+            backend:
+              service:
+                name: account-service
+                port:
+                  number: 8080
+
+          - path: /card
+            pathType: Prefix
+
+            backend:
+              service:
+                name: card-service
+                port:
+                  number: 8080
